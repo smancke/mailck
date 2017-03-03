@@ -7,42 +7,29 @@ import (
 	"strings"
 )
 
-var emailRexp *regexp.Regexp
-
-func init() {
-	emailRexp = regexp.MustCompile("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}$")
-}
+var emailRexp = regexp.MustCompile("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}$")
 
 // Check checks the syntax and if valid, it checks the mailbox by connecting to
 // the target mailserver
 // The fromEmail is used as from address in the communication to the foreign mailserver.
-func Check(fromEmail, checkEmail string) CheckResult {
-	if r := CheckSyntax(checkEmail); r.Unverified {
-		return r
+func Check(fromEmail, checkEmail string) (CheckResult, string, error) {
+	if !CheckSyntax(checkEmail) {
+		return Unvalid, "invalid syntax", nil
 	}
 	return CheckMailbox(fromEmail, checkEmail)
 }
 
-// CheckSyntax verifies, that the syntax of an email is valid.
-func CheckSyntax(checkEmail string) CheckResult {
-	if !emailRexp.Match([]byte(checkEmail)) {
-		return CheckResult{
-			Unverified: true,
-			Msg:        "invalid mail syntax",
-		}
-	}
-	return CheckResult{}
+// CheckSyntax returns true for a valid email, false otherwise
+func CheckSyntax(checkEmail string) bool {
+	return emailRexp.Match([]byte(checkEmail))
 }
 
 // CheckMailbox checks the checkEmail by connecting to the target mailbox and returns the result.
 // The fromEmail is used as from address in the communication to the foreign mailserver.
-func CheckMailbox(fromEmail, checkEmail string) CheckResult {
+func CheckMailbox(fromEmail, checkEmail string) (CheckResult, string, error) {
 	mxList, err := net.LookupMX(hostname(checkEmail))
 	if err != nil || len(mxList) == 0 {
-		return CheckResult{
-			Unverified: true,
-			Msg:        "error, no mailserver for hostname",
-		}
+		return Unvalid, "error, no mailserver for hostname", nil
 	}
 
 	var c *smtp.Client
@@ -53,37 +40,37 @@ func CheckMailbox(fromEmail, checkEmail string) CheckResult {
 		}
 	}
 	if err != nil {
-		return CheckResult{Err: err, Msg: "error connecting mailserver"}
+		return Undefined, "smtp error", err
 	}
 	defer c.Close()
 	defer c.Quit() // defer ist LIFO
 
 	err = c.Hello(hostname(fromEmail))
 	if err != nil {
-		return CheckResult{Err: err, Msg: "error on helo with mailserver"}
+		return Undefined, "smtp error", err
 	}
 
 	err = c.Mail(fromEmail)
 	if err != nil {
-		return CheckResult{Err: err, Msg: "sender rejected by mailserver"}
+		return Undefined, "smtp error", err
 	}
 
 	id, err := c.Text.Cmd("RCPT TO:<%s>", checkEmail)
 	if err != nil {
-		return CheckResult{Err: err, Msg: "communication error on RCPT TO"}
+		return Undefined, "smtp error", err
 	}
 	c.Text.StartResponse(id)
 	code, msg, err := c.Text.ReadResponse(25)
 	c.Text.EndResponse(id)
 	if code == 550 {
-		return CheckResult{Unverified: true, Msg: "mailbox unavailable"}
+		return Unvalid, "mailbox unavailable", nil
 	}
 
 	if err != nil {
-		return CheckResult{Err: err, Msg: msg}
+		return Undefined, msg, err
 	}
 
-	return CheckResult{Verified: true, Msg: "Ok"}
+	return Valid, "Ok", nil
 }
 
 func hostname(mail string) string {

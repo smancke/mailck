@@ -24,10 +24,7 @@ func TestCheckSyntax(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.mail, func(t *testing.T) {
 			result := CheckSyntax(test.mail)
-			assert.Equal(t, !test.valid, result.Unverified)
-			if !test.valid {
-				assert.Equal(t, "invalid mail syntax", result.Msg)
-			}
+			assert.Equal(t, test.valid, result)
 		})
 	}
 }
@@ -36,21 +33,26 @@ func TestCheck(t *testing.T) {
 	tests := []struct {
 		mail   string
 		result CheckResult
+		msg    string
+		err    error
 	}{
-		{"xxx", CheckResult{Unverified: true, Msg: "invalid mail syntax"}},
-		{"s.mancke@sdcsdcsdcsdctarent.de", CheckResult{Unverified: true, Msg: "error, no mailserver for hostname"}},
-		{"s.mancke@tarent.de", CheckResult{Verified: true, Msg: "Ok"}},
-		{"s.mancke+fo42@tarent.de", CheckResult{Verified: true, Msg: "Ok"}},
-		{"not_existant@tarent.de", CheckResult{Unverified: true, Msg: "mailbox unavailable"}},
-		//{"sebastian@mancke.net", CheckResult{Verified: true, Msg: "Ok"}},
-		{"foo@mailinator.com", CheckResult{Verified: true, Msg: "Ok"}},
+		{"xxx", Unvalid, "invalid syntax", nil},
+		{"s.mancke@sdcsdcsdcsdctarent.de", Unvalid, "error, no mailserver for hostname", nil},
+		{"s.mancke@tarent.de", Valid, "Ok", nil},
+		{"s.mancke+fo42@tarent.de", Valid, "Ok", nil},
+		{"not_existant@tarent.de", Unvalid, "mailbox unavailable", nil},
+		//
+		//{"sebastian@mancke.net", CheckResult{Valid: true, Msg: "Ok"}},
+		{"foo@mailinator.com", Valid, "Ok", nil},
 	}
 
 	for _, test := range tests {
 		t.Run(test.mail, func(t *testing.T) {
 			start := time.Now()
-			result := Check("noreply@mancke.net", test.mail)
+			result, msg, err := Check("noreply@mancke.net", test.mail)
 			assert.Equal(t, test.result, result)
+			assert.Equal(t, test.msg, msg)
+			assert.Equal(t, test.err, err)
 			fmt.Printf("check for %v: %v\n", test.mail, time.Since(start))
 		})
 	}
