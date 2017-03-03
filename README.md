@@ -1,4 +1,4 @@
-# mailck
+# mailck - SMTP mail validation
 golang library for email validation
 
 [![Build Status](https://api.travis-ci.org/smancke/mailck.svg?branch=master)](https://travis-ci.org/smancke/mailck)
@@ -8,8 +8,18 @@ golang library for email validation
 This library allows you to check if an email address is realy valid:
 
 * Syntax check
-* Check against blacklist of disposable mailservers (e.g. mailinator.com)
+* Blacklist of disposable mailservers (e.g. mailinator.com)
 * SMTP mailbox check
+
+## Preconditions
+Make sure, that the ip address you are calling from is not
+black listed. This is e.g. the case if the ip is a dynamic IP
+or does not have a valid SPF record entry for the *from* domain.
+Also make sure, that you have a correct reverse dns lookup for
+your ip address.
+
+In case of a blacklisting, the target mailserver may respond with an `SMTP 554`
+or just let you run into a timout.
 
 ## Usage
 
@@ -17,7 +27,7 @@ This library allows you to check if an email address is realy valid:
 
 Do all checks at once:
 
-```
+```go
 result, msg, err := mailck.Check("noreply@mancke.net", "foo@example.com")
 
 if err != nil {
@@ -45,14 +55,4 @@ switch result {
 println("some more information:")
 println(msg)
 ```
-            
-## Preconditions
-Make sure, that the ip address you are calling from is not
-black listed. This is e.g. the case if the ip is a dynamic IP
-or does not have a valid SPF record entry for the *from* domain.
-Also make sure, that you have a correct reverse dns lookup for
-your ip address.
-
-In case of a blacklisting, the target mailserver may respond with an `SMTP 554`
-or just let you run into a timout.
 
