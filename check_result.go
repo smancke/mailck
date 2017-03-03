@@ -1,6 +1,6 @@
 package mailck
 
-// CheckResult contains the infomation about an email check.
+// CheckResult contains the information about an email check.
 type CheckResult struct {
 	// The mailbox could be completely verified.
 	// We know for sure, that the target mailserver would receive mail.
