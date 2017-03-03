@@ -1,5 +1,6 @@
 package mailck
 
+// CheckResult contains the infomation about an email check.
 type CheckResult struct {
 	// The mailbox could be completely verified.
 	// We know for sure, that the target mailserver would receive mail.
@@ -13,7 +14,7 @@ type CheckResult struct {
 	// The mailserver is a throw-away mail gateway like mailinator.com
 	//Disposable bool
 
-	// Err may be a technical error, which occured while checking.
+	// Err may be a technical error, which occurred while checking.
 	// In this case no robust statement about the mail address can be done.
 	Err error
 
