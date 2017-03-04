@@ -43,7 +43,7 @@ func TestCheck(t *testing.T) {
 		{"not_existant@tarent.de", Unvalid, "mailbox unavailable", nil},
 		//
 		//{"sebastian@mancke.net", CheckResult{Valid: true, Msg: "Ok"}},
-		{"foo@mailinator.com", Valid, "Ok", nil},
+		{"foo@mailinator.com", Disposable, "disposable email", nil},
 	}
 
 	for _, test := range tests {

@@ -16,6 +16,10 @@ func Check(fromEmail, checkEmail string) (CheckResult, string, error) {
 	if !CheckSyntax(checkEmail) {
 		return Unvalid, "invalid syntax", nil
 	}
+
+	if CheckDisposable(checkEmail) {
+		return Disposable, "disposable email", nil
+	}
 	return CheckMailbox(fromEmail, checkEmail)
 }
 
