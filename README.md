@@ -56,3 +56,6 @@ println("some more information:")
 println(msg)
 ```
 
+## License
+
+MIT Licensed
