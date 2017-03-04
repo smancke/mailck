@@ -9,11 +9,11 @@ package mailck
 // The list was taken from https://github.com/andreis/disposable
 // License: MIT 
 // Last updated: `date`
-var DisposableDomains = []string{
+var DisposableDomains = map[string]bool{
 EOF
 
 curl -s  https://rawcdn.githack.com/andreis/disposable/master/domains.txt \
-     | sed  's/\(.*\)/\t"\1",/' >> $file
+     | sed  's/\(.*\)/\t"\1": true,/' >> $file
 
 
 echo >> $file
