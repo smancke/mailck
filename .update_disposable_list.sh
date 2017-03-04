@@ -5,6 +5,10 @@ file=disposable_list.go
 cat > $file <<EOF
 package mailck
 
+// DisposableDomains is a list of fake mail providers.
+// The list was taken from https://github.com/andreis/disposable
+// License: MIT 
+// Last updated: `date`
 var DisposableDomains = []string{
 EOF
 

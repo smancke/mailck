@@ -1,5 +1,9 @@
 package mailck
 
+// DisposableDomains is a list of fake mail providers.
+// The list was taken from https://github.com/andreis/disposable
+// License: MIT 
+// Last updated: Sa 4. Mär 21:22:00 CET 2017
 var DisposableDomains = []string{
 	"0-mail.com",
 	"027168.com",
