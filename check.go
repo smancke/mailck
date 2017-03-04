@@ -12,9 +12,9 @@ var emailRexp = regexp.MustCompile("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]
 // Check checks the syntax and if valid, it checks the mailbox by connecting to
 // the target mailserver
 // The fromEmail is used as from address in the communication to the foreign mailserver.
-func Check(fromEmail, checkEmail string) (CheckResult, string, error) {
+func Check(fromEmail, checkEmail string) (result CheckResult, textMessage string, err error) {
 	if !CheckSyntax(checkEmail) {
-		return Unvalid, "invalid syntax", nil
+		return Invalid, "invalid syntax", nil
 	}
 
 	if CheckDisposable(checkEmail) {
@@ -30,12 +30,13 @@ func CheckSyntax(checkEmail string) bool {
 
 // CheckMailbox checks the checkEmail by connecting to the target mailbox and returns the result.
 // The fromEmail is used as from address in the communication to the foreign mailserver.
-func CheckMailbox(fromEmail, checkEmail string) (CheckResult, string, error) {
+func CheckMailbox(fromEmail, checkEmail string) (result CheckResult, textMessage string, err error) {
 	mxList, err := net.LookupMX(hostname(checkEmail))
 	if err != nil || len(mxList) == 0 {
-		return Unvalid, "error, no mailserver for hostname", nil
+		return Invalid, "error, no mailserver for hostname", nil
 	}
 
+	// try to connect to one mx
 	var c *smtp.Client
 	for _, mx := range mxList {
 		c, err = smtp.Dial(mx.Host + ":25")
@@ -49,16 +50,19 @@ func CheckMailbox(fromEmail, checkEmail string) (CheckResult, string, error) {
 	defer c.Close()
 	defer c.Quit() // defer ist LIFO
 
+	// HELO
 	err = c.Hello(hostname(fromEmail))
 	if err != nil {
 		return Undefined, "smtp error", err
 	}
 
+	// MAIL FROM
 	err = c.Mail(fromEmail)
 	if err != nil {
 		return Undefined, "smtp error", err
 	}
 
+	// RCPT TO
 	id, err := c.Text.Cmd("RCPT TO:<%s>", checkEmail)
 	if err != nil {
 		return Undefined, "smtp error", err
@@ -67,7 +71,7 @@ func CheckMailbox(fromEmail, checkEmail string) (CheckResult, string, error) {
 	code, msg, err := c.Text.ReadResponse(25)
 	c.Text.EndResponse(id)
 	if code == 550 {
-		return Unvalid, "mailbox unavailable", nil
+		return Invalid, "mailbox unavailable", nil
 	}
 
 	if err != nil {

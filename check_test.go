@@ -36,11 +36,12 @@ func TestCheck(t *testing.T) {
 		msg    string
 		err    error
 	}{
-		{"xxx", Unvalid, "invalid syntax", nil},
-		{"s.mancke@sdcsdcsdcsdctarent.de", Unvalid, "error, no mailserver for hostname", nil},
+		{"xxx", Invalid, "invalid syntax", nil},
+		{"s.mancke@sdcsdcsdcsdctarent.de", Invalid, "error, no mailserver for hostname", nil},
+		{"foo@example.com", Invalid, "error, no mailserver for hostname", nil},
 		{"s.mancke@tarent.de", Valid, "Ok", nil},
 		{"s.mancke+fo42@tarent.de", Valid, "Ok", nil},
-		{"not_existant@tarent.de", Unvalid, "mailbox unavailable", nil},
+		{"not_existant@tarent.de", Invalid, "mailbox unavailable", nil},
 		//
 		//{"sebastian@mancke.net", CheckResult{Valid: true, Msg: "Ok"}},
 		{"foo@mailinator.com", Disposable, "disposable email", nil},
@@ -53,7 +54,7 @@ func TestCheck(t *testing.T) {
 			assert.Equal(t, test.result, result)
 			assert.Equal(t, test.msg, msg)
 			assert.Equal(t, test.err, err)
-			fmt.Printf("check for %v: %v\n", test.mail, time.Since(start))
+			fmt.Printf("check for %30v: %-15v => %-10v (%v)\n", test.mail, time.Since(start), test.result, msg)
 		})
 	}
 }
