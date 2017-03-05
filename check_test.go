@@ -58,26 +58,28 @@ func TestCheck(t *testing.T) {
 
 func Test_checkMailbox(t *testing.T) {
 	tests := []struct {
-		mail   string
-		stopAt smtpd.Command
-		result CheckResult
-		msg    string
-		err    error
+		stopAt      smtpd.Command
+		result      CheckResult
+		msg         string
+		expectError bool
 	}{
-		{"s.mancke@tarent.de", smtpd.QUIT, Valid, "Ok", nil},
-		{"not_existant@tarent.de", smtpd.RCPTTO, Invalid, "mailbox unavailable", nil},
+		{smtpd.QUIT, Valid, "Ok", false},
+		{smtpd.RCPTTO, Invalid, "mailbox unavailable", false},
+		{smtpd.MAILFROM, Undefined, "smtp error", true},
 	}
 
 	for _, test := range tests {
-		t.Run(test.mail, func(t *testing.T) {
-			start := time.Now()
+		t.Run(fmt.Sprintf("stop at: %v", test.stopAt), func(t *testing.T) {
 			dummyServer := NewDummySMTPServer("localhost:2525", test.stopAt)
 			defer dummyServer.Close()
-			result, msg, err := checkMailbox("noreply@mancke.net", test.mail, []*net.MX{{Host: "localhost"}}, 2525)
+			result, msg, err := checkMailbox("noreply@mancke.net", "foo@bar.de", []*net.MX{{Host: "localhost"}}, 2525)
 			assert.Equal(t, test.result, result)
 			assert.Equal(t, test.msg, msg)
-			assert.Equal(t, test.err, err)
-			fmt.Printf("check for %30v: %-15v => %-10v (%v)\n", test.mail, time.Since(start), test.result, msg)
+			if test.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
 		})
 	}
 }
