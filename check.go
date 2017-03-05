@@ -1,6 +1,7 @@
 package mailck
 
 import (
+	"fmt"
 	"net"
 	"net/smtp"
 	"regexp"
@@ -35,11 +36,14 @@ func CheckMailbox(fromEmail, checkEmail string) (result CheckResult, textMessage
 	if err != nil || len(mxList) == 0 {
 		return Invalid, "error, no mailserver for hostname", nil
 	}
+	return checkMailbox(fromEmail, checkEmail, mxList, 25)
+}
 
+func checkMailbox(fromEmail, checkEmail string, mxList []*net.MX, port int) (result CheckResult, textMessage string, err error) {
 	// try to connect to one mx
 	var c *smtp.Client
 	for _, mx := range mxList {
-		c, err = smtp.Dial(mx.Host + ":25")
+		c, err = smtp.Dial(fmt.Sprintf("%v:%v", mx.Host, port))
 		if err == nil {
 			break
 		}
