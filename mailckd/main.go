@@ -15,6 +15,7 @@ func main() {
 	config := ReadConfig()
 	if err := logging.Set(config.LogLevel, config.TextLogging); err != nil {
 		exit(nil, err)
+		return // return here for unittesing
 	}
 
 	logShutdownEvent()
@@ -37,11 +38,15 @@ func logShutdownEvent() {
 	}()
 }
 
-var exit = func(signal os.Signal, err error) {
+func exit(signal os.Signal, err error) {
 	logging.LifecycleStop(applicationName, signal, err)
-	if err == nil {
-		os.Exit(0)
-	} else {
-		os.Exit(1)
+	exitCode := 0
+	if err != nil {
+		exitCode = 1
 	}
+	osExit(exitCode)
+}
+
+var osExit = func(exitCode int) {
+	os.Exit(exitCode)
 }

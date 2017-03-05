@@ -11,6 +11,21 @@ import (
 	"time"
 )
 
+func Test_ExitOnWrongLoglevel(t *testing.T) {
+	exitCode := -1
+	osExitOriginal := osExit
+	defer func() { osExit = osExitOriginal }()
+	osExit = func(code int) {
+		exitCode = code
+	}
+	originalArgs := os.Args
+	os.Args = []string{"mailckd", "-log-level=FOOO"}
+	defer func() { os.Args = originalArgs }()
+
+	main()
+	assert.Equal(t, 1, exitCode)
+}
+
 func Test_BasicEndToEnd(t *testing.T) {
 	originalArgs := os.Args
 	os.Args = []string{"mailckd", "-host=localhost", "-port=3000", "-text-logging=false"}
