@@ -66,6 +66,7 @@ func Test_checkMailbox(t *testing.T) {
 		{smtpd.QUIT, Valid, "Ok", false},
 		{smtpd.RCPTTO, Invalid, "mailbox unavailable", false},
 		{smtpd.MAILFROM, Undefined, "smtp error", true},
+		{smtpd.HELO, Undefined, "smtp error", true},
 	}
 
 	for _, test := range tests {
@@ -84,6 +85,13 @@ func Test_checkMailbox(t *testing.T) {
 	}
 }
 
+func Test_checkMailbox_NetworkError(t *testing.T) {
+	result, msg, err := checkMailbox("noreply@mancke.net", "foo@bar.de", []*net.MX{{Host: "localhost"}}, 6666)
+	assert.Equal(t, Undefined, result)
+	assert.Equal(t, "smtp error", msg)
+	assert.Error(t, err)
+}
+
 type DummySMTPServer struct {
 	listener net.Listener
 	running  bool
@@ -91,6 +99,7 @@ type DummySMTPServer struct {
 }
 
 func NewDummySMTPServer(listen string, rejectAt smtpd.Command) *DummySMTPServer {
+	time.Sleep(10 * time.Millisecond)
 	ln, err := net.Listen("tcp", listen)
 	if err != nil {
 		panic(err)
@@ -110,6 +119,7 @@ func NewDummySMTPServer(listen string, rejectAt smtpd.Command) *DummySMTPServer 
 			smtpserver.handleClient(conn)
 		}
 	}()
+	time.Sleep(10 * time.Millisecond)
 	return smtpserver
 }
 
@@ -126,8 +136,8 @@ func (smtpserver *DummySMTPServer) handleClient(conn net.Conn) {
 	c := smtpd.NewConn(conn, cfg, nil)
 	for smtpserver.running {
 		event := c.Next()
-		//fmt.Printf("event: %+v\n", event)
-		if event.Cmd == smtpserver.rejectAt {
+		if event.Cmd == smtpserver.rejectAt ||
+			(smtpserver.rejectAt == smtpd.HELO && event.Cmd == smtpd.EHLO) {
 			c.Reject()
 		} else {
 			c.Accept()
