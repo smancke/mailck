@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/smancke/mailck"
 	"net/http"
 )
@@ -23,14 +24,23 @@ func NewValidationHandler(checkFunc MailValidationFunction) *ValidationHandler {
 func (h *ValidationHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	r.ParseForm()
+
 	email := r.Form.Get("email")
+	if email == "" {
+		w.WriteHeader(400)
+		fmt.Fprintf(w, `{"success": false, "msg": "missing parameter: email"}`)
+		return
+	}
+
 	result, msg, err := h.checkFunc(email)
 
-	resultMap := map[string]interface{}{}
-	resultMap["result"] = result
-	resultMap["msg"] = msg
+	resultMap := map[string]interface{}{
+		"success": err == nil,
+		"result":  result,
+		"msg":     msg,
+	}
 	if err != nil {
-		resultMap["err"] = err.Error()
+		w.WriteHeader(500)
 	}
 	b, _ := json.MarshalIndent(resultMap, "", "  ")
 	w.Write(b)

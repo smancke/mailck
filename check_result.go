@@ -17,5 +17,5 @@ var (
 	Disposable = CheckResult("disposable")
 
 	// Undefined result in case of an error
-	Undefined = CheckResult("")
+	Undefined = CheckResult("undefined")
 )
