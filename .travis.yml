@@ -3,6 +3,9 @@ language: go
 go:
   - tip
 
+services:
+  - docker
+
 before_install:
   - go get github.com/wadey/gocovmerge
   - go get github.com/mattn/goveralls
