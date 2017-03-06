@@ -19,8 +19,10 @@ after_success:
   - ./.generate_coverage.sh
   - goveralls -coverprofile=full_cov.out -service=travis-ci
   - if [ "$TRAVIS_BRANCH" == "master" ]; then
-      cd mailckd
+      cd mailckd ;
+      ls ;
       GOOS=linux go build -a --ldflags '-linkmode external -extldflags "-static"' .;
+      ls ;
       docker build -t smancke/mailckd . ;
       docker login -e="$DOCKER_EMAIL" -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD" ;
       docker push smancke/mailckd ;
