@@ -8,7 +8,7 @@ var (
 	// We know for sure, that the target mailserver would receive mail.
 	Valid = CheckResult("valid")
 
-	// Unvalid means, that we know for sure, that the mailbox does not exist.
+	// Invalid means, that we know for sure, that the mailbox does not exist.
 	// e.g. the server syntax is invalid, the hostname does not exist or the
 	// target mailserver said that the mailbox does not exist.
 	Invalid = CheckResult("invalid")

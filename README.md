@@ -42,7 +42,7 @@ switch result {
     // valid!
     // the mailserver accepts mails for this mailbox.
 
-  case mailck.Unvalid:
+  case mailck.Invalid:
     // invalid, e.g. bacause
     // - syntax not ok
     // - domain not valid
