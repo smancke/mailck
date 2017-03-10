@@ -1,5 +1,5 @@
 
-FROM ubuntu
+FROM alpine
 ENV MAILCKD_HOST=0.0.0.0 MAILCKD_PORT=80
 COPY mailckd /
 ENTRYPOINT ["/mailckd"]
