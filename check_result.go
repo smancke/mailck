@@ -1,21 +1,18 @@
 package mailck
 
-// CheckResult contains the information about an email check.
-type CheckResult string
+// Result contains the information about an email check.
+type Result struct {
+	Result       string `json:"result"`
+	ResultDetail string `json:"resultDetail"`
+	Message      string `json:"message"`
+}
 
 var (
-	// The mailbox could be completely verified.
-	// We know for sure, that the target mailserver would receive mail.
-	Valid = CheckResult("valid")
-
-	// Invalid means, that we know for sure, that the mailbox does not exist.
-	// e.g. the server syntax is invalid, the hostname does not exist or the
-	// target mailserver said that the mailbox does not exist.
-	Invalid = CheckResult("invalid")
-
-	// The mailserver is a throw-away mail gateway like mailinator.com
-	Disposable = CheckResult("disposable")
-
-	// Undefined result in case of an error
-	Undefined = CheckResult("undefined")
+	Valid                 = Result{"valid", "mailboxChecked", "The mail address is valid."}
+	InvalidSyntax         = Result{"invalid", "invalidSyntax", "The format is invalid."}
+	InvalidDomain         = Result{"invalid", "invalidDomain", "The domain does not exist."}
+	MailboxUnavailable    = Result{"invalid", "mailboxUnavailable", "The username does not exist."}
+	Disposable            = Result{"invalid", "disposable", "The mailserver is a throw-away mail gateway."}
+	DetailMailserverError = Result{"error", "mailserverError", "The target mailserver responded with an error."}
+	DetailServiceError    = Result{"error", "serviceError", "An internal error occured while checking."}
 )
