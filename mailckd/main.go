@@ -22,7 +22,7 @@ func main() {
 
 	logging.LifecycleStart(applicationName, config)
 
-	checkFunc := func(checkEmail string) (result mailck.CheckResult, textMessage string, err error) {
+	checkFunc := func(checkEmail string) (result mailck.Result, err error) {
 		return mailck.Check(config.FromEmail, checkEmail)
 	}
 	handlerChain := logging.NewLogMiddleware(NewValidationHandler(checkFunc))

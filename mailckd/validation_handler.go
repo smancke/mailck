@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/smancke/mailck"
+	"github.com/tarent/lib-compose/logging"
 	"net/http"
 )
 
 // MailValidationFunction checks the checkEmail
-type MailValidationFunction func(checkEmail string) (result mailck.CheckResult, textMessage string, err error)
+type MailValidationFunction func(checkEmail string) (result mailck.Result, err error)
 
 // ValidationHandler is a REST handler for mail validation.
 type ValidationHandler struct {
@@ -25,23 +26,21 @@ func (h *ValidationHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	r.ParseForm()
 
-	email := r.Form.Get("email")
+	email := r.Form.Get("mail")
 	if email == "" {
 		w.WriteHeader(400)
-		fmt.Fprintf(w, `{"success": false, "msg": "missing parameter: email"}`)
+		fmt.Fprintf(w, `{"result": "error", "resultDetail": "clientError", "message": "missing parameter: mail"}`)
 		return
 	}
 
-	result, msg, err := h.checkFunc(email)
+	result, err := h.checkFunc(email)
 
-	resultMap := map[string]interface{}{
-		"success": err == nil,
-		"result":  result,
-		"msg":     msg,
-	}
 	if err != nil {
-		w.WriteHeader(500)
+		logging.Application(r.Header).WithError(err).WithField("mail", email).Info("check error")
+		if result == mailck.ServiceError {
+			w.WriteHeader(500)
+		}
 	}
-	b, _ := json.MarshalIndent(resultMap, "", "  ")
+	b, _ := json.MarshalIndent(result, "", "  ")
 	w.Write(b)
 }
