@@ -35,7 +35,7 @@ func Test_BasicEndToEnd(t *testing.T) {
 
 	time.Sleep(time.Second)
 
-	r, err := http.Post("http://localhost:3000/api/validate", "application/x-www-form-urlencoded", strings.NewReader(`email=foo@example.com`))
+	r, err := http.Post("http://localhost:3000/api/validate", "application/x-www-form-urlencoded", strings.NewReader(`mail=foo@example.com`))
 	assert.NoError(t, err)
 
 	assert.Equal(t, 200, r.StatusCode)
@@ -49,5 +49,6 @@ func Test_BasicEndToEnd(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, "invalid", result["result"])
-	assert.Equal(t, "error, no mailserver for hostname", result["msg"])
+	assert.Equal(t, "invalidDomain", result["resultDetail"])
+	assert.Equal(t, "The domain does not exist.", result["message"])
 }
