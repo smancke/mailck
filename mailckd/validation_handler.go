@@ -37,7 +37,9 @@ func (h *ValidationHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		logging.Application(r.Header).WithError(err).WithField("mail", email).Info("check error")
-		if result == mailck.ServiceError {
+		if result == mailck.MailserverError {
+			w.WriteHeader(502)
+		} else {
 			w.WriteHeader(500)
 		}
 	}

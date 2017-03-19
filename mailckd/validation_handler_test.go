@@ -81,7 +81,7 @@ func Test_MailserverError(t *testing.T) {
 
 	handler.ServeHTTP(resp, req)
 
-	assert.Equal(t, 200, resp.Code)
+	assert.Equal(t, 502, resp.Code)
 	assert.Equal(t, "application/json", resp.Header().Get("Content-Type"))
 
 	result := getJson(t, resp)
