@@ -15,4 +15,5 @@ var (
 	Disposable         = Result{"invalid", "disposable", "The email is a throw-away address."}
 	MailserverError    = Result{"error", "mailserverError", "The target mailserver responded with an error."}
 	ServiceError       = Result{"error", "serviceError", "An internal error occured while checking."}
+	clientError        = Result{"error", "clientError", "The request was was invalid."}
 )

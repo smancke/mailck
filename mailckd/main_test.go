@@ -51,4 +51,9 @@ func Test_BasicEndToEnd(t *testing.T) {
 	assert.Equal(t, "invalid", result["result"])
 	assert.Equal(t, "invalidDomain", result["resultDetail"])
 	assert.Equal(t, "The email domain does not exist.", result["message"])
+
+	// test for 404
+	r, err = http.Post("http://localhost:3002/api/foobar", "application/x-www-form-urlencoded", strings.NewReader(`mail=foo@example.com`))
+	assert.NoError(t, err)
+	assert.Equal(t, 404, r.StatusCode)
 }
