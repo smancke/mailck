@@ -35,7 +35,7 @@ func Test_BasicEndToEnd(t *testing.T) {
 
 	time.Sleep(time.Second)
 
-	r, err := http.Post("http://localhost:3002/api/validate", "application/x-www-form-urlencoded", strings.NewReader(`mail=foo@example.com`))
+	r, err := http.Post("http://localhost:3002/api/verify", "application/x-www-form-urlencoded", strings.NewReader(`mail=foo@example.com`))
 	assert.NoError(t, err)
 
 	assert.Equal(t, 200, r.StatusCode)

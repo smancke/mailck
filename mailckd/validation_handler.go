@@ -45,7 +45,7 @@ func (h *ValidationHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !strings.HasSuffix(r.URL.Path, "/validate") {
+	if !strings.HasSuffix(r.URL.Path, "/verify") {
 		writeError(w, 404, "clientError", "ressource not found")
 		return
 	}

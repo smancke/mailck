@@ -58,7 +58,7 @@ func Test_Requests(t *testing.T) {
 		},
 		{
 			title:              "valid GET example",
-			url:                "/validate?mail=foo%40example.com",
+			url:                "/verify?mail=foo%40example.com",
 			validationFunction: testValidationFunction(mailck.Valid, nil),
 			method:             "GET",
 			responseCode:       200,
@@ -73,7 +73,7 @@ func Test_Requests(t *testing.T) {
 			validationFunction: testValidationFunction(mailck.Valid, nil),
 			method:             "POST",
 			requestType:        "application/x-www-form-urlencoded",
-			url:                "/validate",
+			url:                "/verify",
 			body:               "",
 			responseCode:       400,
 			result:             "error",
@@ -116,7 +116,7 @@ func Test_Requests(t *testing.T) {
 		{
 			title:              "service error",
 			validationFunction: testValidationFunction(mailck.ServiceError, errors.New("some error")),
-			url:                "/validate?mail=foo%40example.com",
+			url:                "/verify?mail=foo%40example.com",
 			method:             "GET",
 			responseCode:       500,
 			result:             "error",
@@ -126,7 +126,7 @@ func Test_Requests(t *testing.T) {
 		{
 			title:              "mailserver error",
 			validationFunction: testValidationFunction(mailck.MailserverError, errors.New("some error")),
-			url:                "/validate?mail=foo%40example.com",
+			url:                "/verify?mail=foo%40example.com",
 			method:             "GET",
 			responseCode:       502,
 			result:             "error",
@@ -138,7 +138,7 @@ func Test_Requests(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.title, func(t *testing.T) {
 			handler := NewValidationHandler(test.validationFunction)
-			url := "/validate"
+			url := "/verify"
 			if test.url != "" {
 				url = test.url
 			}
