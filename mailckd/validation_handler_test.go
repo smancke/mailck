@@ -20,91 +20,146 @@ func testValidationFunction(result mailck.Result, err error) MailValidationFunct
 	}
 }
 
-func Test_BadRequest(t *testing.T) {
-	handler := NewValidationHandler(testValidationFunction(mailck.Valid, nil))
+func Test_Requests(t *testing.T) {
+	tests := []struct {
+		title              string
+		validationFunction MailValidationFunction
+		method             string
+		requestType        string
+		url                string
+		body               string
+		responseCode       int
+		responseType       string
+		result             string
+		resultDetail       string
+		message            string
+	}{
+		{
+			title:              "valid POST example",
+			validationFunction: testValidationFunction(mailck.Valid, nil),
+			method:             "POST",
+			requestType:        "application/x-www-form-urlencoded",
+			body:               "mail=foo@example.com",
+			responseCode:       200,
+			result:             "valid",
+			resultDetail:       "mailboxChecked",
+			message:            mailck.Valid.Message,
+		},
+		{
+			title:              "valid JSON POST example",
+			validationFunction: testValidationFunction(mailck.Valid, nil),
+			method:             "POST",
+			requestType:        "application/json",
+			body:               `{"mail": "foo@example.com"}`,
+			responseCode:       200,
+			result:             "valid",
+			resultDetail:       "mailboxChecked",
+			message:            mailck.Valid.Message,
+		},
+		{
+			title:              "valid GET example",
+			url:                "/validate?mail=foo%40example.com",
+			validationFunction: testValidationFunction(mailck.Valid, nil),
+			method:             "GET",
+			responseCode:       200,
+			result:             "valid",
+			resultDetail:       "mailboxChecked",
+			message:            mailck.Valid.Message,
+		},
 
-	req, err := http.NewRequest("POST", "/", nil)
-	assert.NoError(t, err)
-	resp := httptest.NewRecorder()
+		// error cases
+		{
+			title:              "missing parameter",
+			validationFunction: testValidationFunction(mailck.Valid, nil),
+			method:             "POST",
+			requestType:        "application/x-www-form-urlencoded",
+			url:                "/validate",
+			body:               "",
+			responseCode:       400,
+			result:             "error",
+			resultDetail:       "clientError",
+			message:            "missing parameter: mail",
+		},
+		{
+			title:              "JSON parsing error",
+			validationFunction: testValidationFunction(mailck.Valid, nil),
+			method:             "POST",
+			requestType:        "application/json",
+			body:               `{"mail": "foo@example.com`,
+			responseCode:       400,
+			result:             "error",
+			resultDetail:       "clientError",
+			message:            "unexpected end of JSON input",
+		},
+		{
+			title:              "method not allowed",
+			validationFunction: testValidationFunction(mailck.Valid, nil),
+			method:             "PUT",
+			requestType:        "application/json",
+			body:               `{"mail": "foo@example.com"}`,
+			responseCode:       405,
+			result:             "error",
+			resultDetail:       "clientError",
+			message:            "method not allowed",
+		},
+		{
+			title:              "wrong content type",
+			validationFunction: testValidationFunction(mailck.Valid, nil),
+			method:             "POST",
+			requestType:        "text/plain",
+			body:               `{"mail": "foo@example.com"}`,
+			responseCode:       415,
+			result:             "error",
+			resultDetail:       "clientError",
+			message:            "Unsupported Media Type",
+		},
+		{
+			title:              "service error",
+			validationFunction: testValidationFunction(mailck.ServiceError, errors.New("some error")),
+			url:                "/validate?mail=foo%40example.com",
+			method:             "GET",
+			responseCode:       500,
+			result:             "error",
+			resultDetail:       "serviceError",
+			message:            mailck.ServiceError.Message,
+		},
+		{
+			title:              "mailserver error",
+			validationFunction: testValidationFunction(mailck.MailserverError, errors.New("some error")),
+			url:                "/validate?mail=foo%40example.com",
+			method:             "GET",
+			responseCode:       502,
+			result:             "error",
+			resultDetail:       "mailserverError",
+			message:            mailck.MailserverError.Message,
+		},
+	}
 
-	handler.ServeHTTP(resp, req)
+	for _, test := range tests {
+		t.Run(test.title, func(t *testing.T) {
+			handler := NewValidationHandler(test.validationFunction)
+			url := "/validate"
+			if test.url != "" {
+				url = test.url
+			}
+			req, err := http.NewRequest(test.method, url, strings.NewReader(test.body))
+			if test.requestType != "" {
+				req.Header.Set("Content-Type", test.requestType)
+			}
+			assert.NoError(t, err)
+			resp := httptest.NewRecorder()
 
-	assert.Equal(t, 400, resp.Code)
-	assert.Equal(t, "application/json", resp.Header().Get("Content-Type"))
+			handler.ServeHTTP(resp, req)
 
-	result := getJson(t, resp)
-	assert.Equal(t, "error", result["result"])
-	assert.Equal(t, "clientError", result["resultDetail"])
-	assert.Equal(t, "missing parameter: mail", result["message"])
-}
+			assert.Equal(t, test.responseCode, resp.Code)
+			assert.Equal(t, "application/json", resp.Header().Get("Content-Type"))
 
-func Test_SuccessPost(t *testing.T) {
-	handler := NewValidationHandler(testValidationFunction(mailck.Valid, nil))
-	req, err := http.NewRequest("POST", "http://localhost:3000/api/validate", strings.NewReader(`mail=foo@example.com`))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	assert.NoError(t, err)
-	resp := httptest.NewRecorder()
-
-	handler.ServeHTTP(resp, req)
-
-	assert.Equal(t, 200, resp.Code)
-	assert.Equal(t, "application/json", resp.Header().Get("Content-Type"))
-
-	result := getJson(t, resp)
-	assert.Equal(t, "valid", result["result"])
-	assert.Equal(t, "mailboxChecked", result["resultDetail"])
-	assert.Equal(t, mailck.Valid.Message, result["message"])
-}
-
-func Test_SuccessGet(t *testing.T) {
-	handler := NewValidationHandler(testValidationFunction(mailck.Valid, nil))
-	req, err := http.NewRequest("GET", "http://localhost:3000/api/validate?mail=foo@example.com", nil)
-	assert.NoError(t, err)
-	resp := httptest.NewRecorder()
-
-	handler.ServeHTTP(resp, req)
-
-	assert.Equal(t, 200, resp.Code)
-	assert.Equal(t, "application/json", resp.Header().Get("Content-Type"))
-
-	result := getJson(t, resp)
-	assert.Equal(t, "valid", result["result"])
-	assert.Equal(t, "mailboxChecked", result["resultDetail"])
-	assert.Equal(t, mailck.Valid.Message, result["message"])
-}
-
-func Test_MailserverError(t *testing.T) {
-	handler := NewValidationHandler(testValidationFunction(mailck.MailserverError, errors.New("some error")))
-	req, err := http.NewRequest("GET", "http://localhost:3000/api/validate?mail=foo@example.com", nil)
-	assert.NoError(t, err)
-	resp := httptest.NewRecorder()
-
-	handler.ServeHTTP(resp, req)
-
-	assert.Equal(t, 502, resp.Code)
-	assert.Equal(t, "application/json", resp.Header().Get("Content-Type"))
-
-	result := getJson(t, resp)
-	assert.Equal(t, "error", result["result"])
-	assert.Equal(t, "mailserverError", result["resultDetail"])
-	assert.Equal(t, mailck.MailserverError.Message, result["message"])
-}
-
-func Test_ServiceError(t *testing.T) {
-	handler := NewValidationHandler(testValidationFunction(mailck.ServiceError, errors.New("some error")))
-	req, err := http.NewRequest("GET", "http://localhost:3000/api/validate?mail=foo@example.com", nil)
-	assert.NoError(t, err)
-	resp := httptest.NewRecorder()
-
-	handler.ServeHTTP(resp, req)
-
-	assert.Equal(t, 500, resp.Code)
-	assert.Equal(t, "application/json", resp.Header().Get("Content-Type"))
-
-	result := getJson(t, resp)
-	assert.Equal(t, "error", result["result"])
-	assert.Equal(t, "serviceError", result["resultDetail"])
-	assert.Equal(t, mailck.ServiceError.Message, result["message"])
+			result := getJson(t, resp)
+			assert.Equal(t, test.result, result["result"])
+			assert.Equal(t, test.resultDetail, result["resultDetail"])
+			assert.Equal(t, test.message, result["message"])
+		})
+	}
 }
 
 func getJson(t *testing.T, resp *httptest.ResponseRecorder) map[string]interface{} {
