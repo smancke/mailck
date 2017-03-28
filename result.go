@@ -17,3 +17,15 @@ var (
 	ServiceError       = Result{"error", "serviceError", "An internal error occured while checking."}
 	clientError        = Result{"error", "clientError", "The request was was invalid."}
 )
+
+func (r Result) IsValid() bool {
+	return r.Result == "valid"
+}
+
+func (r Result) IsInvalid() bool {
+	return r.Result == "invalid"
+}
+
+func (r Result) IsError() bool {
+	return r.Result == "error"
+}
