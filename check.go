@@ -6,6 +6,7 @@ import (
 	"net/smtp"
 	"regexp"
 	"strings"
+	"context"
 )
 
 var emailRexp = regexp.MustCompile("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}$")
@@ -24,10 +25,24 @@ func Check(fromEmail, checkEmail string) (result Result, err error) {
 	return CheckMailbox(fromEmail, checkEmail)
 }
 
+func CheckContext(ctx context.Context,fromEmail, checkEmail string) (result Result, err error) {
+	if !CheckSyntax(checkEmail) {
+		return InvalidSyntax, nil
+	}
+
+	if CheckDisposable(checkEmail) {
+		return Disposable, nil
+	}
+	return CheckMailboxContext(ctx,fromEmail, checkEmail)
+}
 // CheckSyntax returns true for a valid email, false otherwise
 func CheckSyntax(checkEmail string) bool {
 	return emailRexp.Match([]byte(checkEmail))
 }
+
+var noContext = context.Background()
+var defaultResolver = net.DefaultResolver
+var defaultDialer = net.Dialer{}
 
 // CheckMailbox checks the checkEmail by connecting to the target mailbox and returns the result.
 // The fromEmail is used as from address in the communication to the foreign mailserver.
@@ -37,14 +52,27 @@ func CheckMailbox(fromEmail, checkEmail string) (result Result, err error) {
 	if err != nil || len(mxList) == 0 {
 		return InvalidDomain, nil
 	}
-	return checkMailbox(fromEmail, checkEmail, mxList, 25)
+	return checkMailbox(noContext, fromEmail, checkEmail, mxList, 25)
 }
 
-func checkMailbox(fromEmail, checkEmail string, mxList []*net.MX, port int) (result Result, err error) {
+func CheckMailboxContext(ctx context.Context,fromEmail, checkEmail string) (result Result, err error) {
+	mxList, err := defaultResolver.LookupMX(ctx,hostname(checkEmail))
+	// TODO: Distinguish between usual network errors
+	if err != nil || len(mxList) == 0 {
+		return InvalidDomain, nil
+	}
+	return checkMailbox(ctx, fromEmail, checkEmail, mxList, 25)
+}
+
+func checkMailbox(ctx context.Context, fromEmail, checkEmail string, mxList []*net.MX, port int) (result Result, err error) {
 	// try to connect to one mx
 	var c *smtp.Client
 	for _, mx := range mxList {
-		c, err = smtp.Dial(fmt.Sprintf("%v:%v", mx.Host, port))
+		conn, err := defaultDialer.DialContext(ctx,"tcp", fmt.Sprintf("%v:%v", mx.Host, port))
+		if err != nil {
+			return MailserverError, err
+		}
+		c, err = smtp.NewClient(conn,mx.Host)
 		if err == nil {
 			break
 		}
