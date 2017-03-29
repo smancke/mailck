@@ -14,6 +14,8 @@ var (
 	MailboxUnavailable = Result{"invalid", "mailboxUnavailable", "The email username does not exist."}
 	Disposable         = Result{"invalid", "disposable", "The email is a throw-away address."}
 	MailserverError    = Result{"error", "mailserverError", "The target mailserver responded with an error."}
+	TimeoutError       = Result{"error", "timeoutError", "The connection with the mailserver timed out."}
+	NetworkError       = Result{"error", "networkError", "The connection to the mailserver could not be made."}
 	ServiceError       = Result{"error", "serviceError", "An internal error occured while checking."}
 	clientError        = Result{"error", "clientError", "The request was was invalid."}
 )

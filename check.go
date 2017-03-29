@@ -64,12 +64,19 @@ func CheckMailboxContext(ctx context.Context,fromEmail, checkEmail string) (resu
 	return checkMailbox(ctx, fromEmail, checkEmail, mxList, 25)
 }
 
+type checkRv struct { res Result
+                      err error }
 func checkMailbox(ctx context.Context, fromEmail, checkEmail string, mxList []*net.MX, port int) (result Result, err error) {
 	// try to connect to one mx
 	var c *smtp.Client
 	for _, mx := range mxList {
 		conn, err := defaultDialer.DialContext(ctx,"tcp", fmt.Sprintf("%v:%v", mx.Host, port))
-		if err != nil {
+		if t,ok := err.(*net.OpError) ; ok {
+			if t.Timeout() {
+				return TimeoutError, err
+			}
+			return NetworkError,err
+		} else if err != nil {
 			return MailserverError, err
 		}
 		c, err = smtp.NewClient(conn,mx.Host)
@@ -80,38 +87,54 @@ func checkMailbox(ctx context.Context, fromEmail, checkEmail string, mxList []*n
 	if err != nil {
 		return MailserverError, err
 	}
-	defer c.Close()
-	defer c.Quit() // defer ist LIFO
 
-	// HELO
-	err = c.Hello(hostname(fromEmail))
-	if err != nil {
-		return MailserverError, err
-	}
+	resChan := make(chan checkRv)
 
-	// MAIL FROM
-	err = c.Mail(fromEmail)
-	if err != nil {
-		return MailserverError, err
-	}
+	go func() {
+		defer c.Close()
+		defer c.Quit() // defer ist LIFO
+		// HELO
+		err = c.Hello(hostname(fromEmail))
+		if err != nil {
+			resChan <- checkRv{ MailserverError, err }
+			return
+		}
 
-	// RCPT TO
-	id, err := c.Text.Cmd("RCPT TO:<%s>", checkEmail)
-	if err != nil {
-		return MailserverError, err
-	}
-	c.Text.StartResponse(id)
-	code, _, err := c.Text.ReadResponse(25)
-	c.Text.EndResponse(id)
-	if code == 550 {
-		return MailboxUnavailable, nil
-	}
+		// MAIL FROM
+		err = c.Mail(fromEmail)
+		if err != nil {
+			resChan <- checkRv{ MailserverError, err }
+			return
+		}
 
-	if err != nil {
-		return MailserverError, err
-	}
+		// RCPT TO
+		id, err := c.Text.Cmd("RCPT TO:<%s>", checkEmail)
+		if err != nil {
+			resChan <- checkRv{ MailserverError, err }
+			return
+		}
+		c.Text.StartResponse(id)
+		code, _, err := c.Text.ReadResponse(25)
+		c.Text.EndResponse(id)
+		if code == 550 {
+			resChan <- checkRv{ MailboxUnavailable, nil }
+			return
+		}
 
-	return Valid, nil
+		if err != nil {
+			resChan <- checkRv{ MailserverError, err }
+			return
+		}
+
+		resChan <- checkRv{ Valid, nil }
+
+	}()
+	select {
+	case <- ctx.Done():
+		return TimeoutError, ctx.Err()
+	case q := <- resChan:
+		return q.res,q.err
+	}
 }
 
 func hostname(mail string) string {

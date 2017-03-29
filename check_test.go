@@ -7,6 +7,7 @@ import (
 	"net"
 	"testing"
 	"time"
+	"context"
 )
 
 func TestCheckSyntax(t *testing.T) {
@@ -68,9 +69,9 @@ func Test_checkMailbox(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("stop at: %v", test.stopAt), func(t *testing.T) {
-			dummyServer := NewDummySMTPServer("localhost:2525", test.stopAt)
+			dummyServer := NewDummySMTPServer("localhost:2525", test.stopAt, 0)
 			defer dummyServer.Close()
-			result, err := checkMailbox("noreply@mancke.net", "foo@bar.de", []*net.MX{{Host: "localhost"}}, 2525)
+			result, err := checkMailbox(noContext,"noreply@mancke.net", "foo@bar.de", []*net.MX{{Host: "localhost"}}, 2525)
 			assert.Equal(t, test.result, result)
 			if test.expectError {
 				assert.Error(t, err)
@@ -82,27 +83,59 @@ func Test_checkMailbox(t *testing.T) {
 }
 
 func Test_checkMailbox_NetworkError(t *testing.T) {
-	result, err := checkMailbox("noreply@mancke.net", "foo@bar.de", []*net.MX{{Host: "localhost"}}, 6666)
-	assert.Equal(t, MailserverError, result)
+	result, err := checkMailbox(noContext,"noreply@mancke.net", "foo@bar.de", []*net.MX{{Host: "localhost"}}, 6666)
+	assert.Equal(t, NetworkError, result)
 	assert.Error(t, err)
+}
+
+func Test_checkMailboxContext(t *testing.T) {
+	deltas := []struct{
+		delayTime      time.Duration
+		contextTime    time.Duration
+		expectedResult Result
+	}{
+		{ 0, 0, TimeoutError },
+		{ 0, time.Second, Valid },
+		{ time.Millisecond * 1500, 200 * time.Millisecond, TimeoutError },
+	}
+	for _,d := range deltas {
+		t.Run(fmt.Sprintf("context time %v delay %v expected %v", d.contextTime,d.delayTime,d.expectedResult.Result), func(t *testing.T) {
+			dummyServer := NewDummySMTPServer("localhost:2528", smtpd.QUIT,d.delayTime)
+			tt := time.Now()
+			ctx, _ := context.WithTimeout(context.Background(), d.contextTime)
+			result,err := checkMailbox(ctx, "noreply@mancke.net", "foo@bar.de", []*net.MX{{Host: "127.0.0.1"}}, 2528)
+			if d.expectedResult == Valid {
+				assert.NoError(t,err)
+			} else {
+				assert.Error(t,err)
+			}
+			assert.Equal(t,d.expectedResult, result)
+			// confirm that we completed within requested time
+			// add 10ms of wiggle room
+			assert.WithinDuration(t, time.Now(), tt, d.contextTime + 10 * time.Millisecond)
+			dummyServer.Close()
+		})
+	}
 }
 
 type DummySMTPServer struct {
 	listener net.Listener
 	running  bool
 	rejectAt smtpd.Command
+	delay time.Duration
 }
 
-func NewDummySMTPServer(listen string, rejectAt smtpd.Command) *DummySMTPServer {
-	time.Sleep(10 * time.Millisecond)
+func NewDummySMTPServer(listen string, rejectAt smtpd.Command, delay time.Duration) *DummySMTPServer {
 	ln, err := net.Listen("tcp", listen)
 	if err != nil {
 		panic(err)
 	}
+	time.Sleep(10 * time.Millisecond)
 	smtpserver := &DummySMTPServer{
 		listener: ln,
 		running:  true,
 		rejectAt: rejectAt,
+		delay: delay,
 	}
 
 	go func() {
@@ -111,7 +144,7 @@ func NewDummySMTPServer(listen string, rejectAt smtpd.Command) *DummySMTPServer 
 			if err != nil {
 				return
 			}
-			smtpserver.handleClient(conn)
+			go smtpserver.handleClient(conn)
 		}
 	}()
 	time.Sleep(10 * time.Millisecond)
@@ -121,6 +154,7 @@ func NewDummySMTPServer(listen string, rejectAt smtpd.Command) *DummySMTPServer 
 func (smtpserver *DummySMTPServer) Close() {
 	smtpserver.listener.Close()
 	smtpserver.running = false
+	time.Sleep(10 * time.Millisecond)
 }
 
 func (smtpserver *DummySMTPServer) handleClient(conn net.Conn) {
@@ -131,6 +165,7 @@ func (smtpserver *DummySMTPServer) handleClient(conn net.Conn) {
 	c := smtpd.NewConn(conn, cfg, nil)
 	for smtpserver.running {
 		event := c.Next()
+		time.Sleep(smtpserver.delay)
 		if event.Cmd == smtpserver.rejectAt ||
 			(smtpserver.rejectAt == smtpd.HELO && event.Cmd == smtpd.EHLO) {
 			c.Reject()
