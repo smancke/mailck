@@ -25,7 +25,7 @@ func Check(fromEmail, checkEmail string) (result Result, err error) {
 	return CheckMailbox(fromEmail, checkEmail)
 }
 
-func CheckContext(ctx context.Context,fromEmail, checkEmail string) (result Result, err error) {
+func CheckWithContext(ctx context.Context,fromEmail, checkEmail string) (result Result, err error) {
 	if !CheckSyntax(checkEmail) {
 		return InvalidSyntax, nil
 	}
@@ -33,7 +33,7 @@ func CheckContext(ctx context.Context,fromEmail, checkEmail string) (result Resu
 	if CheckDisposable(checkEmail) {
 		return Disposable, nil
 	}
-	return CheckMailboxContext(ctx,fromEmail, checkEmail)
+	return CheckMailboxWithContext(ctx,fromEmail, checkEmail)
 }
 // CheckSyntax returns true for a valid email, false otherwise
 func CheckSyntax(checkEmail string) bool {
@@ -55,7 +55,7 @@ func CheckMailbox(fromEmail, checkEmail string) (result Result, err error) {
 	return checkMailbox(noContext, fromEmail, checkEmail, mxList, 25)
 }
 
-func CheckMailboxContext(ctx context.Context,fromEmail, checkEmail string) (result Result, err error) {
+func CheckMailboxWithContext(ctx context.Context,fromEmail, checkEmail string) (result Result, err error) {
 	mxList, err := defaultResolver.LookupMX(ctx,hostname(checkEmail))
 	// TODO: Distinguish between usual network errors
 	if err != nil || len(mxList) == 0 {
