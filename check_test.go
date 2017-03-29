@@ -102,7 +102,7 @@ func Test_checkMailboxContext(t *testing.T) {
 		t.Run(fmt.Sprintf("context time %v delay %v expected %v", d.contextTime,d.delayTime,d.expectedResult.Result), func(t *testing.T) {
 			dummyServer := NewDummySMTPServer("localhost:2528", smtpd.QUIT,d.delayTime)
 			tt := time.Now()
-			ctx, _ := context.WithTimeout(context.Background(), d.contextTime)
+			ctx, cancel := context.WithTimeout(context.Background(), d.contextTime)
 			result,err := checkMailbox(ctx, "noreply@mancke.net", "foo@bar.de", []*net.MX{{Host: "127.0.0.1"}}, 2528)
 			if d.expectedResult == Valid {
 				assert.NoError(t,err)
@@ -114,6 +114,7 @@ func Test_checkMailboxContext(t *testing.T) {
 			// add 10ms of wiggle room
 			assert.WithinDuration(t, time.Now(), tt, d.contextTime + 10 * time.Millisecond)
 			dummyServer.Close()
+			cancel()
 		})
 	}
 }
