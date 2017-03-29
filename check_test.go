@@ -1,13 +1,13 @@
 package mailck
 
 import (
+	"context"
 	"fmt"
 	"github.com/siebenmann/smtpd"
 	"github.com/stretchr/testify/assert"
 	"net"
 	"testing"
 	"time"
-	"context"
 )
 
 func assertResultState(t *testing.T, result Result, expected resultState) {
@@ -52,13 +52,24 @@ func TestCheck(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(test.mail, func(t *testing.T) {
+		t.Run(fmt.Sprintf("regular %v", test.mail), func(t *testing.T) {
 			start := time.Now()
 			result, err := Check("noreply@mancke.net", test.mail)
 			assert.Equal(t, test.result, result)
 			assert.Equal(t, test.err, err)
 			assertResultState(t, result, test.expectedState)
 			fmt.Printf("check for %30v: %-15v => %-10v (%v)\n", test.mail, time.Since(start), test.result.Result, test.result.ResultDetail)
+		})
+		t.Run(fmt.Sprintf("context %v", test.mail), func(t *testing.T) {
+			start := time.Now()
+			ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
+			result, err := CheckWithContext(ctx, "noreply@mancke.net", test.mail)
+			assert.Equal(t, test.result, result)
+			assert.Equal(t, test.err, err)
+			assertResultState(t, result, test.expectedState)
+			assert.WithinDuration(t, time.Now(), start, 160*time.Millisecond)
+			fmt.Printf("check for %30v: %-15v => %-10v (%v)\n", test.mail, time.Since(start), test.result.Result, test.result.ResultDetail)
+			cancel()
 		})
 	}
 }
@@ -80,7 +91,7 @@ func Test_checkMailbox(t *testing.T) {
 		t.Run(fmt.Sprintf("stop at: %v", test.stopAt), func(t *testing.T) {
 			dummyServer := NewDummySMTPServer("localhost:2525", test.stopAt, 0)
 			defer dummyServer.Close()
-			result, err := checkMailbox(noContext,"noreply@mancke.net", "foo@bar.de", []*net.MX{{Host: "localhost"}}, 2525)
+			result, err := checkMailbox(noContext, "noreply@mancke.net", "foo@bar.de", []*net.MX{{Host: "localhost"}}, 2525)
 			assert.Equal(t, test.result, result)
 			if test.expectError {
 				assert.Error(t, err)
@@ -93,37 +104,37 @@ func Test_checkMailbox(t *testing.T) {
 }
 
 func Test_checkMailbox_NetworkError(t *testing.T) {
-	result, err := checkMailbox(noContext,"noreply@mancke.net", "foo@bar.de", []*net.MX{{Host: "localhost"}}, 6666)
+	result, err := checkMailbox(noContext, "noreply@mancke.net", "foo@bar.de", []*net.MX{{Host: "localhost"}}, 6666)
 	assert.Equal(t, NetworkError, result)
 	assert.Error(t, err)
 	assertResultState(t, result, errorState)
 }
 
 func Test_checkMailboxContext(t *testing.T) {
-	deltas := []struct{
+	deltas := []struct {
 		delayTime      time.Duration
 		contextTime    time.Duration
 		expectedResult Result
 	}{
-		{ 0, 0, TimeoutError },
-		{ 0, time.Second, Valid },
-		{ time.Millisecond * 1500, 200 * time.Millisecond, TimeoutError },
+		{0, 0, TimeoutError},
+		{0, time.Second, Valid},
+		{time.Millisecond * 1500, 200 * time.Millisecond, TimeoutError},
 	}
-	for _,d := range deltas {
-		t.Run(fmt.Sprintf("context time %v delay %v expected %v", d.contextTime,d.delayTime,d.expectedResult.Result), func(t *testing.T) {
-			dummyServer := NewDummySMTPServer("localhost:2528", smtpd.QUIT,d.delayTime)
-			tt := time.Now()
+	for _, d := range deltas {
+		t.Run(fmt.Sprintf("context time %v delay %v expected %v", d.contextTime, d.delayTime, d.expectedResult.Result), func(t *testing.T) {
+			dummyServer := NewDummySMTPServer("localhost:2528", smtpd.QUIT, d.delayTime)
+			start := time.Now()
 			ctx, cancel := context.WithTimeout(context.Background(), d.contextTime)
-			result,err := checkMailbox(ctx, "noreply@mancke.net", "foo@bar.de", []*net.MX{{Host: "127.0.0.1"}}, 2528)
+			result, err := checkMailbox(ctx, "noreply@mancke.net", "foo@bar.de", []*net.MX{{Host: "127.0.0.1"}}, 2528)
 			if d.expectedResult == Valid {
-				assert.NoError(t,err)
+				assert.NoError(t, err)
 			} else {
-				assert.Error(t,err)
+				assert.Error(t, err)
 			}
-			assert.Equal(t,d.expectedResult, result)
+			assert.Equal(t, d.expectedResult, result)
 			// confirm that we completed within requested time
 			// add 10ms of wiggle room
-			assert.WithinDuration(t, time.Now(), tt, d.contextTime + 10 * time.Millisecond)
+			assert.WithinDuration(t, time.Now(), start, d.contextTime+10*time.Millisecond)
 			dummyServer.Close()
 			cancel()
 		})
@@ -134,7 +145,7 @@ type DummySMTPServer struct {
 	listener net.Listener
 	running  bool
 	rejectAt smtpd.Command
-	delay time.Duration
+	delay    time.Duration
 }
 
 func NewDummySMTPServer(listen string, rejectAt smtpd.Command, delay time.Duration) *DummySMTPServer {
@@ -147,7 +158,7 @@ func NewDummySMTPServer(listen string, rejectAt smtpd.Command, delay time.Durati
 		listener: ln,
 		running:  true,
 		rejectAt: rejectAt,
-		delay: delay,
+		delay:    delay,
 	}
 
 	go func() {
