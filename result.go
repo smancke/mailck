@@ -1,5 +1,17 @@
 package mailck
 
+type resultState string
+
+const (
+	validState   = resultState("valid")
+	invalidState = resultState("invalid")
+	errorState   = resultState("error")
+)
+
+func (rs resultState) String() string {
+	return string(rs)
+}
+
 // Result contains the information about an email check.
 type Result struct {
 	Result       string `json:"result"`
@@ -19,3 +31,15 @@ var (
 	ServiceError       = Result{"error", "serviceError", "An internal error occured while checking."}
 	clientError        = Result{"error", "clientError", "The request was was invalid."}
 )
+
+func (r Result) IsValid() bool {
+	return resultState(r.Result) == validState
+}
+
+func (r Result) IsInvalid() bool {
+	return resultState(r.Result) == invalidState
+}
+
+func (r Result) IsError() bool {
+	return resultState(r.Result) == errorState
+}

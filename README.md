@@ -29,23 +29,27 @@ or just let you run into a timout.
 Do all checks at once:
 
 ```go
-result, err := mailck.Check("noreply@mancke.net", "foo@example.com")
+result, _ := mailck.Check("noreply@mancke.net", "foo@example.com")
+switch {
 
-switch result.Result {
+  case result.IsValid():
+  // valid!
+  // the mailserver accepts mails for this mailbox.
 
-  case mailck.Valid:
-    // valid!
-    // the mailserver accepts mails for this mailbox.
-
-  case mailck.Invalid:
-    // invalid, e.g. bacause
-    // the reason is contained in result.ResultDetail
-
-  case mailck.Error:
+  case result.IsError():
   // something went wrong in the smtp communication
   // we can't say for sure if the address is valid or not
 
-
+  case result.IsInvalid():
+  // invalid for some reason
+  // the reason is contained in result.ResultDetail
+  // or we can check for different reasons:
+  switch (result) {
+    case mailck.InvalidDomain:
+    // domain is invalid
+    case mailck.InvalidSyntax:
+    // e-mail address syntax is invalid
+  }
 }
 ```
 
