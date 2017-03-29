@@ -9,14 +9,10 @@ import (
 	"time"
 )
 
-var invalidState = [3]bool{ false, true, false }
-var validState = [3]bool{ true, false, false }
-var errorState = [3]bool{ false, false, true}
-
-func assertResultState(t *testing.T,result Result, expected [3]bool) {
-	assert.Equal(t,result.IsValid(), expected[0] )
-	assert.Equal(t,result.IsInvalid(), expected[1] )
-	assert.Equal(t,result.IsError(), expected[2] )
+func assertResultState(t *testing.T, result Result, expected resultState) {
+	assert.Equal(t, result.IsValid(), expected == validState)
+	assert.Equal(t, result.IsInvalid(), expected == invalidState)
+	assert.Equal(t, result.IsError(), expected == errorState)
 }
 
 func TestCheckSyntax(t *testing.T) {
@@ -43,10 +39,10 @@ func TestCheckSyntax(t *testing.T) {
 
 func TestCheck(t *testing.T) {
 	tests := []struct {
-		mail   string
-		result Result
-		err    error
-		expectedState [3]bool
+		mail          string
+		result        Result
+		err           error
+		expectedState resultState
 	}{
 		{"xxx", InvalidSyntax, nil, invalidState},
 		{"s.mancke@sdcsdcsdcsdctarent.de", InvalidDomain, nil, invalidState},
@@ -60,7 +56,7 @@ func TestCheck(t *testing.T) {
 			result, err := Check("noreply@mancke.net", test.mail)
 			assert.Equal(t, test.result, result)
 			assert.Equal(t, test.err, err)
-			assertResultState(t,result,test.expectedState)
+			assertResultState(t, result, test.expectedState)
 			fmt.Printf("check for %30v: %-15v => %-10v (%v)\n", test.mail, time.Since(start), test.result.Result, test.result.ResultDetail)
 		})
 	}
@@ -68,10 +64,10 @@ func TestCheck(t *testing.T) {
 
 func Test_checkMailbox(t *testing.T) {
 	tests := []struct {
-		stopAt      smtpd.Command
-		result      Result
-		expectError bool
-		expectedState [3]bool
+		stopAt        smtpd.Command
+		result        Result
+		expectError   bool
+		expectedState resultState
 	}{
 		{smtpd.QUIT, Valid, false, validState},
 		{smtpd.RCPTTO, MailboxUnavailable, false, invalidState},
@@ -90,7 +86,7 @@ func Test_checkMailbox(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 			}
-			assertResultState(t,result,test.expectedState)
+			assertResultState(t, result, test.expectedState)
 		})
 	}
 }
@@ -99,7 +95,7 @@ func Test_checkMailbox_NetworkError(t *testing.T) {
 	result, err := checkMailbox("noreply@mancke.net", "foo@bar.de", []*net.MX{{Host: "localhost"}}, 6666)
 	assert.Equal(t, MailserverError, result)
 	assert.Error(t, err)
-	assertResultState(t,result,errorState)
+	assertResultState(t, result, errorState)
 }
 
 type DummySMTPServer struct {
