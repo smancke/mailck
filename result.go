@@ -1,45 +1,45 @@
 package mailck
 
-type resultState string
+type ResultState string
 
 const (
-	validState   resultState = "valid"
-	invalidState             = "invalid"
-	errorState               = "error"
+	ValidState   ResultState = "valid"
+	InvalidState             = "invalid"
+	ErrorState               = "error"
 )
 
-func (rs resultState) String() string {
+func (rs ResultState) String() string {
 	return string(rs)
 }
 
 // Result contains the information about an email check.
 type Result struct {
-	Result       resultState `json:"result"`
+	Result       ResultState `json:"result"`
 	ResultDetail string      `json:"resultDetail"`
 	Message      string      `json:"message"`
 }
 
 var (
-	Valid              = Result{validState, "mailboxChecked", "The email address is valid."}
-	InvalidSyntax      = Result{invalidState, "invalidSyntax", "The email format is invalid."}
-	InvalidDomain      = Result{invalidState, "invalidDomain", "The email domain does not exist."}
-	MailboxUnavailable = Result{invalidState, "mailboxUnavailable", "The email username does not exist."}
-	Disposable         = Result{invalidState, "disposable", "The email is a throw-away address."}
-	MailserverError    = Result{errorState, "mailserverError", "The target mailserver responded with an error."}
-	TimeoutError       = Result{errorState, "timeoutError", "The connection with the mailserver timed out."}
-	NetworkError       = Result{errorState, "networkError", "The connection to the mailserver could not be made."}
-	ServiceError       = Result{errorState, "serviceError", "An internal error occured while checking."}
-	clientError        = Result{errorState, "clientError", "The request was was invalid."}
+	Valid              = Result{ValidState, "mailboxChecked", "The email address is valid."}
+	InvalidSyntax      = Result{InvalidState, "invalidSyntax", "The email format is invalid."}
+	InvalidDomain      = Result{InvalidState, "invalidDomain", "The email domain does not exist."}
+	MailboxUnavailable = Result{InvalidState, "mailboxUnavailable", "The email username does not exist."}
+	Disposable         = Result{InvalidState, "disposable", "The email is a throw-away address."}
+	MailserverError    = Result{ErrorState, "mailserverError", "The target mailserver responded with an error."}
+	TimeoutError       = Result{ErrorState, "timeoutError", "The connection with the mailserver timed out."}
+	NetworkError       = Result{ErrorState, "networkError", "The connection to the mailserver could not be made."}
+	ServiceError       = Result{ErrorState, "serviceError", "An internal error occured while checking."}
+	ClientError        = Result{ErrorState, "clientError", "The request was was invalid."}
 )
 
 func (r Result) IsValid() bool {
-	return r.Result == validState
+	return r.Result == ValidState
 }
 
 func (r Result) IsInvalid() bool {
-	return r.Result == invalidState
+	return r.Result == InvalidState
 }
 
 func (r Result) IsError() bool {
-	return r.Result == errorState
+	return r.Result == ErrorState
 }

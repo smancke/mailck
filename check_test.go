@@ -10,10 +10,10 @@ import (
 	"time"
 )
 
-func assertResultState(t *testing.T, result Result, expected resultState) {
-	assert.Equal(t, result.IsValid(), expected == validState)
-	assert.Equal(t, result.IsInvalid(), expected == invalidState)
-	assert.Equal(t, result.IsError(), expected == errorState)
+func assertResultState(t *testing.T, result Result, expected ResultState) {
+	assert.Equal(t, result.IsValid(), expected == ValidState)
+	assert.Equal(t, result.IsInvalid(), expected == InvalidState)
+	assert.Equal(t, result.IsError(), expected == ErrorState)
 }
 
 func TestCheckSyntax(t *testing.T) {
@@ -43,12 +43,12 @@ func TestCheck(t *testing.T) {
 		mail          string
 		result        Result
 		err           error
-		expectedState resultState
+		expectedState ResultState
 	}{
-		{"xxx", InvalidSyntax, nil, invalidState},
-		{"s.mancke@sdcsdcsdcsdctarent.de", InvalidDomain, nil, invalidState},
-		{"foo@example.com", InvalidDomain, nil, invalidState},
-		{"foo@mailinator.com", Disposable, nil, invalidState},
+		{"xxx", InvalidSyntax, nil, InvalidState},
+		{"s.mancke@sdcsdcsdcsdctarent.de", InvalidDomain, nil, InvalidState},
+		{"foo@example.com", InvalidDomain, nil, InvalidState},
+		{"foo@mailinator.com", Disposable, nil, InvalidState},
 	}
 
 	for _, test := range tests {
@@ -79,12 +79,12 @@ func Test_checkMailbox(t *testing.T) {
 		stopAt        smtpd.Command
 		result        Result
 		expectError   bool
-		expectedState resultState
+		expectedState ResultState
 	}{
-		{smtpd.QUIT, Valid, false, validState},
-		{smtpd.RCPTTO, MailboxUnavailable, false, invalidState},
-		{smtpd.MAILFROM, MailserverError, true, errorState},
-		{smtpd.HELO, MailserverError, true, errorState},
+		{smtpd.QUIT, Valid, false, ValidState},
+		{smtpd.RCPTTO, MailboxUnavailable, false, InvalidState},
+		{smtpd.MAILFROM, MailserverError, true, ErrorState},
+		{smtpd.HELO, MailserverError, true, ErrorState},
 	}
 
 	for _, test := range tests {
@@ -107,7 +107,7 @@ func Test_checkMailbox_NetworkError(t *testing.T) {
 	result, err := checkMailbox(noContext, "noreply@mancke.net", "foo@bar.de", []*net.MX{{Host: "localhost"}}, 6666)
 	assert.Equal(t, NetworkError, result)
 	assert.Error(t, err)
-	assertResultState(t, result, errorState)
+	assertResultState(t, result, ErrorState)
 }
 
 func Test_checkMailboxContext(t *testing.T) {
