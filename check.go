@@ -92,9 +92,11 @@ func checkMailbox(ctx context.Context, fromEmail, checkEmail string, mxList []*n
 	if err != nil {
 		return MailserverError, err
 	}
-	//	if c == nil {
-	//		return MailserverError, fmt.Errorf("can't obtain connection for %v", checkEmail)
-	//	}
+	if c == nil {
+		// just to get very sure, that we have a connection
+		// this code line should never be reached!
+		return MailserverError, fmt.Errorf("can't obtain connection for %v", checkEmail)
+	}
 
 	resChan := make(chan checkRv, 1)
 
