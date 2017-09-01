@@ -89,7 +89,7 @@ func Test_checkMailbox(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("stop at: %v", test.stopAt), func(t *testing.T) {
-			dummyServer := NewDummySMTPServer("localhost:2525", test.stopAt, 0)
+			dummyServer := NewDummySMTPServer("localhost:2525", test.stopAt, false, 0)
 			defer dummyServer.Close()
 			result, err := checkMailbox(noContext, "noreply@mancke.net", "foo@bar.de", []*net.MX{{Host: "localhost"}}, 2525)
 			assert.Equal(t, test.result, result)
@@ -101,6 +101,15 @@ func Test_checkMailbox(t *testing.T) {
 			assertResultState(t, result, test.expectedState)
 		})
 	}
+}
+
+func Test_checkMailbox_MailserverCloesAfterConnect(t *testing.T) {
+	dummyServer := NewDummySMTPServer("localhost:2525", smtpd.NOOP, true, 0)
+	defer dummyServer.Close()
+	result, err := checkMailbox(noContext, "noreply@mancke.net", "foo@bar.de", []*net.MX{{Host: "localhost"}}, 2525)
+	assert.Equal(t, MailserverError, result)
+	assert.Error(t, err)
+	assertResultState(t, result, ErrorState)
 }
 
 func Test_checkMailbox_NetworkError(t *testing.T) {
@@ -122,7 +131,7 @@ func Test_checkMailboxContext(t *testing.T) {
 	}
 	for _, d := range deltas {
 		t.Run(fmt.Sprintf("context time %v delay %v expected %v", d.contextTime, d.delayTime, d.expectedResult.Result), func(t *testing.T) {
-			dummyServer := NewDummySMTPServer("localhost:2528", smtpd.QUIT, d.delayTime)
+			dummyServer := NewDummySMTPServer("localhost:2528", smtpd.QUIT, false, d.delayTime)
 			start := time.Now()
 			ctx, cancel := context.WithTimeout(context.Background(), d.contextTime)
 			result, err := checkMailbox(ctx, "noreply@mancke.net", "foo@bar.de", []*net.MX{{Host: "127.0.0.1"}}, 2528)
@@ -142,23 +151,25 @@ func Test_checkMailboxContext(t *testing.T) {
 }
 
 type DummySMTPServer struct {
-	listener net.Listener
-	running  bool
-	rejectAt smtpd.Command
-	delay    time.Duration
+	listener          net.Listener
+	running           bool
+	rejectAt          smtpd.Command
+	closeAfterConnect bool
+	delay             time.Duration
 }
 
-func NewDummySMTPServer(listen string, rejectAt smtpd.Command, delay time.Duration) *DummySMTPServer {
+func NewDummySMTPServer(listen string, rejectAt smtpd.Command, closeAfterConnect bool, delay time.Duration) *DummySMTPServer {
 	ln, err := net.Listen("tcp", listen)
 	if err != nil {
 		panic(err)
 	}
 	time.Sleep(10 * time.Millisecond)
 	smtpserver := &DummySMTPServer{
-		listener: ln,
-		running:  true,
-		rejectAt: rejectAt,
-		delay:    delay,
+		listener:          ln,
+		running:           true,
+		rejectAt:          rejectAt,
+		closeAfterConnect: closeAfterConnect,
+		delay:             delay,
 	}
 
 	go func() {
@@ -167,7 +178,11 @@ func NewDummySMTPServer(listen string, rejectAt smtpd.Command, delay time.Durati
 			if err != nil {
 				return
 			}
-			go smtpserver.handleClient(conn)
+			if smtpserver.closeAfterConnect {
+				conn.Close()
+			} else {
+				go smtpserver.handleClient(conn)
+			}
 		}
 	}()
 	time.Sleep(10 * time.Millisecond)
