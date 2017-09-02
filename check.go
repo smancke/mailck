@@ -74,7 +74,8 @@ func checkMailbox(ctx context.Context, fromEmail, checkEmail string, mxList []*n
 	// try to connect to one mx
 	var c *smtp.Client
 	for _, mx := range mxList {
-		conn, err := defaultDialer.DialContext(ctx, "tcp", fmt.Sprintf("%v:%v", mx.Host, port))
+		var conn net.Conn
+		conn, err = defaultDialer.DialContext(ctx, "tcp", fmt.Sprintf("%v:%v", mx.Host, port))
 		if t, ok := err.(*net.OpError); ok {
 			if t.Timeout() {
 				return TimeoutError, err
@@ -90,6 +91,11 @@ func checkMailbox(ctx context.Context, fromEmail, checkEmail string, mxList []*n
 	}
 	if err != nil {
 		return MailserverError, err
+	}
+	if c == nil {
+		// just to get very sure, that we have a connection
+		// this code line should never be reached!
+		return MailserverError, fmt.Errorf("can't obtain connection for %v", checkEmail)
 	}
 
 	resChan := make(chan checkRv, 1)
