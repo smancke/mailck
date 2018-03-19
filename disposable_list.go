@@ -970,6 +970,7 @@ var DisposableDomains = map[string]bool{
 	"nus.edu.sg": true,
 	"nutpa.net": true,
 	"nwldx.com": true,
+	"nwytg.com": true,
 	"o.cfo2go.ro": true,
 	"o.oai.asia": true,
 	"o.opendns.ro": true,
