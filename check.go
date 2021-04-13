@@ -104,7 +104,8 @@ func checkMailbox(ctx context.Context, fromEmail, checkEmail string, mxList []*n
 		defer c.Close()
 		defer c.Quit() // defer ist LIFO
 		// HELO
-		err = c.Hello(hostname(fromEmail))
+		// err = c.Hello(hostname(fromEmail))
+		err = c.Hello(singleMX(fromEmail))
 		if err != nil {
 			resChan <- checkRv{MailserverError, err}
 			return
@@ -149,4 +150,23 @@ func checkMailbox(ctx context.Context, fromEmail, checkEmail string, mxList []*n
 
 func hostname(mail string) string {
 	return mail[strings.Index(mail, "@")+1:]
+}
+
+func singleMX(email string) string {
+
+	var (
+		myList string
+		mxLength int
+	)
+
+	domain := email[strings.Index(email, "@")+1:]
+	mxrecords, _ := net.LookupMX(domain)	
+	
+	for _, mx := range mxrecords {
+
+		myList = mx.Host
+		mxLength = len(myList) - 1
+	}
+	
+	return myList[:mxLength]
 }
